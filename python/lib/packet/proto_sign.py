@@ -15,7 +15,7 @@
 :mod:`proto_sign` --- Signed Capnp protos
 =========================================
 """
-
+import time
 # External
 import capnp  # noqa
 
@@ -44,12 +44,15 @@ class ProtoSign(Cerealizable):
         assert isinstance(src, bytes), type(src)
         return cls(cls.P_CLS.new_message(type=type_, src=src))
 
-    def sign(self, key, msg):
+    def sign(self, key, msg, ts=None):
         assert isinstance(msg, bytes), type(msg)
         if len(msg) == 0:
             raise ProtoSignError("Message is empty (sign)")
         if len(self.p.signature) > 0:
             raise ProtoSignError("Signature already present")
+        if ts is None:
+            ts = time.time()
+        self.p.timestamp = int(ts)
         if self.p.type == ProtoSignType.ED25519:
             self.p.signature = sign(self._sig_input(msg), key)
         else:
@@ -69,6 +72,8 @@ class ProtoSign(Cerealizable):
             raise ProtoSignError("Unsupported proto signature type (verify): %s" % self.p.type)
 
     def sig_pack(self, incl_sig=True):
+        # XXX(worxli) add ts to signature but in sep. PR as it also needs changes in BR
+        # b = [str(self.p.type).encode("utf-8"), self.p.src, self.p.timestamp.to_bytes(4, 'big')]
         b = [str(self.p.type).encode("utf-8"), self.p.src]
         if incl_sig:
             b.append(self.p.signature)

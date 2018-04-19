@@ -32,7 +32,6 @@ from prometheus_client import Counter, Gauge, start_http_server
 import lib.app.sciond as lib_sciond
 from lib.config import Config
 from lib.crypto.certificate_chain import verify_chain_trc
-from lib.crypto.hash_tree import ConnectedHashTree
 from lib.errors import SCIONParseError, SCIONVerificationError
 from lib.flagtypes import TCPFlags
 from lib.defines import (
@@ -1178,9 +1177,9 @@ class SCIONElement(object):
             raise SCIONServiceLookupError("No %s servers found" % qname)
         return results
 
-    def _verify_revocation_for_asm(self, rev_info, as_marking, verify_all=True):
+    def _check_revocation_for_asm(self, rev_info, as_marking, verify_all=True):
         """
-        Verifies a revocation for a given AS marking.
+        Checks a revocation for a given AS marking.
 
         :param rev_info: The RevocationInfo object.
         :param as_marking: The ASMarking object.
@@ -1190,9 +1189,6 @@ class SCIONElement(object):
             interface in the AS marking, False otherwise.
         """
         if rev_info.isd_as() != as_marking.isd_as():
-            return False
-        if not ConnectedHashTree.verify(rev_info, as_marking.p.hashTreeRoot):
-            logging.error("Revocation verification failed. %s", rev_info)
             return False
         for pcbm in as_marking.iter_pcbms():
             if rev_info.p.ifID in [pcbm.hof().ingress_if, pcbm.hof().egress_if]:
@@ -1253,3 +1249,28 @@ class SCIONElement(object):
                 return path_entries[0].path()
         logging.warning("Unable to get path to %s from SCIOND.", isd_as)
         return None
+
+    def check_revocation(self, srev_info, meta):
+        """
+        Checks if the revocation is valid and processing should continue
+        :returns: boolean if all checks were successful
+        """
+        rev_info = srev_info.rev_info()
+        try:
+            rev_info.validate()
+        except SCIONBaseError as e:
+            logging.error("Failed to validate RevInfo from %s: %s\n%s",
+                          meta, e, rev_info.short_desc())
+            return False
+        if not rev_info.active():
+            return False
+        cert = self.trust_store.get_cert(rev_info.isd_as())
+        if not cert:
+            logging.error("Failed to fetch cert for ISD-AS: %s", rev_info.isd_as())
+            return False
+        try:
+            srev_info.verify(cert.as_cert.subject_sig_key_raw)
+        except SCIONBaseError as e:
+            logging.error("Failed to verify SRevInfo from %s: %s", meta, e)
+            return False
+        return True
