@@ -275,6 +275,7 @@ def setup_main(name, parser=None):
                         help="Run as server")
     parser.add_argument('--data', default=None, help="Data for client / server split run")
     parser.add_argument('--port', default=0, help="Port for client / server split run")
+    parser.add_argument('--api_addr', default=None, help="SCIOND address")
     parser.add_argument('src_ia', nargs='?', help='Src isd-as')
     parser.add_argument('dst_ia', help='Dst isd-as')
     args = parser.parse_args()

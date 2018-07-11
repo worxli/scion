@@ -23,16 +23,73 @@ cmd_help() {
 	        Run docker-compose command for util services.
 	    $PROGRAM tester [command]
 	        Run a command in the `tester` container.
+	    $PROGRAM sig_tester [ia] [command]
+	        Run a command in the `tester` container.
 	_EOF
 }
 
+cmd_init() {
+	FILE="gen/dc-networks.conf"
+	while read line; do
+		vars=( $line )
+		local name="${vars[1]}"
+		docker network inspect "$name" &> /dev/null
+		if [[ $? -eq 0 ]]; then
+			echo "Network $name already exists, skip creating."
+		else
+			echo "Creating network $name: $(docker network create --driver=bridge --subnet="${vars[0]}" -o "com.docker.network.bridge.name=$name" "$name")"
+		fi
+	done < $FILE
+	cmd_utils up -d chowner
+}
+
+cmd_scion() {
+	COMPOSE_FILE="gen/base-dc.yml:gen/scion-dc.yml" docker-compose "$@"
+}
+
+cmd_sig() {
+	COMPOSE_FILE="gen/base-dc.yml:gen/sig-dc.yml" docker-compose "$@"
+}
+
+cmd_utils() {
+	COMPOSE_FILE="gen/base-dc.yml:gen/utils-dc.yml" docker-compose "$@"
+}
+
+cmd_tester() {
+	COMPOSE_FILE="gen/base-dc.yml:gen/testers-dc.yml" docker-compose "$@"
+}
+
+sig_tester() {
+	local ia="$1"
+	shift
+	docker exec -t "tester_$ia" "$@"
+}
+
+cmd_down() {
+	cmd_utils down >/dev/null 2>&1
+	cmd_sig down >/dev/null 2>&1
+	cmd_scion down >/dev/null 2>&1
+	FILE="gen/dc-networks.conf"
+	while read line; do
+		vars=( $line )
+		local name="${vars[1]}"
+		docker network inspect "$name" &> /dev/null
+		if [[ $? -eq 0 ]]; then
+			echo "Removing network $(docker network rm "$name")"
+		else
+			echo "Network $name not found, skip removing."
+		fi
+	done < $FILE
+}
+
 PROGRAM="${0##*/}"
-DC_ENV="$1"
+COMMAND="$1"
 shift
 
-case "$DC_ENV" in
-    "scion") COMPOSE_FILE="gen/base-dc.yml:gen/scion-dc.yml" docker-compose "$@" ;;
-    "utils") COMPOSE_FILE="gen/base-dc.yml:gen/utils-dc.yml" docker-compose "$@" ;;
-    "tester") docker exec -t -e PYTHONPATH=python/: tester "$@" ;;
+case "$COMMAND" in
+	init|scion|sig|utils|down|tester)
+        "cmd_$COMMAND" "$@" ;;
+    "run_tester") docker exec -t -e PYTHONPATH=python/: tester "$@" ;;
+    "run_sig_tester") sig_tester "$@" ;;
     *)  cmd_help; exit 1 ;;
 esac

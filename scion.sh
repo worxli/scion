@@ -59,6 +59,7 @@ cmd_run() {
 run_zk() {
     if is_docker; then
         systemctl is-active --quiet zookeeper && sudo systemctl stop zookeeper
+        ./tools/dc.sh init
         ./tools/dc.sh scion up -d zookeeper
     else
         systemctl is-active --quiet zookeeper || sudo systemctl start zookeeper

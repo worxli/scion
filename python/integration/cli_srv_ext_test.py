@@ -89,12 +89,13 @@ def main():
     args = setup_main("cli_srv_ext_test")
     if args.run_server:
         dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))
-        ExtServer(args.data.encode('utf-8'), dst, port=int(args.port)).run()
+        ExtServer(args.data.encode('utf-8'), dst, port=int(args.port),
+                  api_addr=args.api_addr).run()
     else:
         src = SCIONAddr.from_values(ISD_AS(args.src_ia), haddr_parse_interface(args.client))
         dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))
         ExtClient(args.data.encode('utf-8'), src, dst, dport=int(args.port),
-                  retries=args.retries).run()
+                  retries=args.retries, api_addr=args.api_addr).run()
 
 
 if __name__ == "__main__":

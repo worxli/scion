@@ -370,7 +370,8 @@ def main():
     success = True
     for cls_ in GEN_LIST:
         logging.info("===========> Testing: %s", cls_.DESC)
-        client = cls_(copy.deepcopy(data), copy.deepcopy(src), copy.deepcopy(dst), 0, api=True)
+        client = cls_(copy.deepcopy(data), copy.deepcopy(src), copy.deepcopy(dst), 0, api=True,
+                      api_addr=args.api_addr)
         if not client.run():
             success = False
     if not success:

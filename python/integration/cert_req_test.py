@@ -41,7 +41,7 @@ from integration.base_cli_srv import (
 
 
 class TestCertClient(TestClientBase):
-    def __init__(self, addr, dst_ia, retries=2):
+    def __init__(self, addr, dst_ia, retries=2, api_addr):
         # We need the lib sciond here already.
         connector = lib_sciond.init(get_sciond_api_addr(addr))
         cs_info = lib_sciond.get_service_info(
@@ -49,7 +49,7 @@ class TestCertClient(TestClientBase):
         cs = cs_info.host_info(0)
         cs_addr = SCIONAddr.from_values(addr.isd_as, cs.ipv4() or cs.ipv6())
         self.cert = None
-        super().__init__("", addr, cs_addr, cs.p.port, retries=retries)
+        super().__init__("", addr, cs_addr, cs.p.port, retries=retries, api_addr=api_addr)
         self.dst_ia = dst_ia
 
     def _get_path(self, api, flush=None):
@@ -105,7 +105,7 @@ def main():
 
     src = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.client))
     dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))
-    TestCertClient(src, dst.isd_as, retries=args.retries).run()
+    TestCertClient(src, dst.isd_as, retries=args.retries, api_addr=args.api_addr).run()
 
 
 if __name__ == "__main__":
