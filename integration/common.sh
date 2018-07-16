@@ -24,7 +24,11 @@ log() {
 run_docker() {
     local cmd="$1"
     shift
-    docker container exec $CONTAINER bash -lc "$cmd \"\$@\"" "/bin/bash" "$@"
+    if [ "$CONTAINER" = "native" ]; then
+        "$cmd" "$@" -d
+    else
+        docker container exec $CONTAINER bash -lc "$cmd \"\$@\"" "/bin/bash" "$@"
+    fi
 }
 
 run() {
@@ -46,7 +50,7 @@ run() {
 }
 
 usage() {
-    echo "Usage: $0: [-b brs] [-d ctr_name]\n"
+    echo "Usage: $0: [-b brs] [-d ctr_name]"
     exit 1
 }
 

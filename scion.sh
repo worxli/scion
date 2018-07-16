@@ -94,6 +94,7 @@ cmd_stop() {
     echo "Terminating this run of the SCION infrastructure"
     if is_docker; then
         ./tools/dc.sh scion down
+        ./tools/dc.sh utils down
     else
         supervisor/supervisor.sh stop all
     fi

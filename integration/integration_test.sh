@@ -18,21 +18,6 @@
 # Get docker flag and container name
 opts "$@"
 
-wait_startup() {
-    count=0
-    while true; do
-        log "Waiting for host ZK to be up (count:$count)"
-        { echo "ruok" | nc localhost 2181 | grep -q 'imok'; } && break
-        count=$((count+1))
-        if [ $count -gt 20 ]; then
-            log "Host ZK failed to come up within 1 minute"
-            exit 1
-        fi
-        sleep 3
-    done
-    log "Host ZK up"
-}
-
 shutdown() {
     log "Scion status:"
     ./scion.sh status
@@ -48,36 +33,39 @@ log "Scion status:"
 
 sleep 5
 # Sleep for longer if running in circleci, to reduce flakiness due to slow startup:
-[ -n "$CIRCLECI" ] && sleep 35
+[ -n "$CIRCLECI" ] && sleep 50
 
-# Run integration tests
-run End2End python/integration/end2end_test.py -l ERROR
-result=$?
-run C2S_extn python/integration/cli_srv_ext_test.py -l ERROR
-result=$((result+$?))
-run SCMP_error python/integration/scmp_error_test.py -l ERROR --runs 60
-result=$((result+$?))
-run Cert/TRC_request python/integration/cert_req_test.py -l ERROR
-result=$((result+$?))
-
-# Run go integration test
+# Run go infra test
 GO_INFRA_TEST="go test -tags infrarunning"
 for i in ./go/lib/{snet,pathmgr,infra/disp}; do
     run "Go Infra: $i" ${GO_INFRA_TEST} $i
     result=$((result+$?))
 done
 
-# Run (new) go integration tests
+# Run go integration tests
+[ -n "$CONTAINER" ] && CONTAINER="native"
 for i in ./bin/*_integration; do
     run "Go Integration: $i" "$i"
     result=$((result+$?))
 done
 
+# Run python integration tests
+run End2End bin/end2end_pyintegration -log.console error
+result=$?
+run C2S_extn bin/cli_srv_ext_pyintegration -log.console error
+result=$((result+$?))
+run SCMP_echo bin/scmp_echo_pyintegration -log.console error
+result=$((result+$?))
+run SCMP_error bin/scmp_error_pyintegration -log.console error
+result=$((result+$?))
+run Cert/TRC_request bin/cert_req_pyintegration -log.console error
+result=$((result+$?))
+
 [ -n "$CONTAINER" ] && rev_args="-d $CONTAINER"
 integration/revocation_test.sh -b "$REV_BRS" $rev_args
 result=$((result+$?))
 
-shutdown
+# shutdown
 
 if [ $result -eq 0 ]; then
     log "All tests successful"

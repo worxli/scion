@@ -8,4 +8,6 @@ docker container exec $ctnr bash -c "./scion.sh topology -d"
 docker cp $ctnr:/home/scion/go/src/github.com/scionproto/scion/gen .
 docker cp $ctnr:/home/scion/go/src/github.com/scionproto/scion/gen-cache .
 docker cp $ctnr:/home/scion/go/src/github.com/scionproto/scion/gen-certs .
+docker cp $ctnr:/home/scion/go/src/github.com/scionproto/scion/bin .
+./tools/dc.sh utils up -d
 ./integration/integration_test.sh -d $ctnr
