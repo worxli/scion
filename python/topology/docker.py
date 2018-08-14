@@ -70,7 +70,7 @@ class DockerGenerator(object):
         self._write_files()
 
         utils_gen = UtilsGenerator(self.out_dir, self.topo_dicts, self.sig,
-                                   self.dc_base_conf['volumes'])
+                                   self.dc_base_conf['volumes'], self.elem_networks, self.bridges)
         utils_gen.generate()
 
     def _write_files(self):
@@ -142,10 +142,6 @@ class DockerGenerator(object):
     def _sig_conf(self, topo_id, topo, base):
         name = 'sig_%s' % topo_id.file_fmt()
         net = self.elem_networks[topo_id.file_fmt()][0]
-        rem_nets = []
-        for key in self.elem_networks:
-            if 'br' not in key and key != topo_id.file_fmt():
-                rem_nets.append(str(self.elem_networks[key][0]['net']))
         entry = {
             'image': 'scion_sig_testing:latest',
             'container_name': name,
@@ -168,7 +164,7 @@ class DockerGenerator(object):
             ],
             'networks': {},
             'command': [
-                ','.join(rem_nets),
+                remote_nets(self.elem_networks, topo_id),
                 '-id=%s' % name,
                 '-ia=%s' % ISD_AS(topo_id.file_fmt()),
                 '-ip=%s' % str(net['ipv4']),
@@ -386,15 +382,15 @@ class DockerGenerator(object):
 
 
 class UtilsGenerator(object):
-    def __init__(self, out_dir, topo_dicts, sig, volumes):
+    def __init__(self, out_dir, topo_dicts, sig, volumes, elem_networks, bridges):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
         self.dc_util_conf = {'version': '3', 'services': {}}
         self.dc_tester_conf = {'version': '3', 'services': {}}
-        self.elem_networks = {}
+        self.elem_networks = elem_networks
         self.sig = sig
         self.volumes = volumes
-        self.bridges = {}
+        self.bridges = bridges
 
     def generate(self):
         if not self.sig:
@@ -458,7 +454,6 @@ class UtilsGenerator(object):
 
     def _sig_test_conf(self, topo_id):
         net = self.elem_networks[topo_id.file_fmt()][0]
-        rem_nets = remote_nets(self.elem_networks, topo_id)
         entry = {
             # 'image': 'scion_app_builder',
             'image': 'iperf',
@@ -472,7 +467,7 @@ class UtilsGenerator(object):
             'entrypoint': [
                 './tester.sh',
                 str(net['ipv4']+3),
-                ','.join(rem_nets)
+                remote_nets(self.elem_networks, topo_id)
             ],
         }
         name = 'tester_%s' % topo_id.file_fmt()
@@ -486,4 +481,4 @@ def remote_nets(networks, topo_id):
     for key in networks:
         if 'br' not in key and key != topo_id.file_fmt():
             rem_nets.append(str(networks[key][0]['net']))
-    return rem_nets
+    return ','.join(rem_nets)
