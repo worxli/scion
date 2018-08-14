@@ -41,7 +41,7 @@ from integration.base_cli_srv import (
 
 
 class TestCertClient(TestClientBase):
-    def __init__(self, addr, dst_ia, retries=2, api_addr):
+    def __init__(self, addr, dst_ia, api_addr, retries=2):
         # We need the lib sciond here already.
         connector = lib_sciond.init(get_sciond_api_addr(addr))
         cs_info = lib_sciond.get_service_info(

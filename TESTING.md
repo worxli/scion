@@ -35,9 +35,9 @@ It's possible to run every service instance in it's own docker container. When c
 topology, specify the `-d` flag. To run the integration tests in this setup,
 run `./integration/integration.sh docker`.
 
-If you want to use `docker-compose` commands, `./tools/dc.sh` might be helpful.
+If you want to use [`docker-compose`](https://docs.docker.com/compose/install/) commands, `./tools/dc.sh` might be helpful.
 
 ### Circle-CI
 The SCION project uses Circle-CI as its continuous integration platform. To run a local version
-of Circle-CI first build a docker image as described in `docker/README.md` and then run
-`tools/ci/local`.
+of Circle-CI first build a docker image as described in `docker/README.md`, then build the per app
+docker images with `make -C docker/perapp/` and then run `tools/ci/local`.
