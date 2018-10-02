@@ -17,6 +17,7 @@ package sciond
 import (
 	"fmt"
 	"net"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -314,7 +315,7 @@ type PathInterface struct {
 	IfID     common.IFIDType
 }
 
-func NewPathInterface(str string) (PathInterface, error) {
+func NewPathInterface2(str string) (PathInterface, error) {
 	var iface PathInterface
 	// Allow short form with implicit AS wildcard
 	isdParts := strings.Split(str, "-")
@@ -359,6 +360,38 @@ func NewPathInterface(str string) (PathInterface, error) {
 	}
 	iface.RawIsdas = addr.IA{I: isd, A: as}.IAInt()
 	return iface, nil
+}
+
+func NewPathInterface(str string) (PathInterface, error) {
+	re := regexp.MustCompile("([0-9]+)(-[0-9]+)?(#[0-9]+)?")
+	strs := re.FindStringSubmatch(str)
+	if len(strs) == 0 || len(strs[0]) != len(str) {
+		return PathInterface{}, common.NewBasicError("Failed to parse interface spec", nil, "value", str)
+	}
+	isd := addr.ISD(extractIntFromSlice(strs[1], 0))
+	as := addr.AS(extractIntFromSlice(strs[2], 1))
+	ifid := common.IFIDType(extractIntFromSlice(strs[3], 1))
+	fmt.Println("str", str, "isd", isd, "as", as, "ifid", ifid)
+	switch {
+	case isd == 0 && as == 0 && ifid != 0:
+		fallthrough
+	case isd != 0 && as == 0 && ifid != 0:
+		return PathInterface{}, common.NewBasicError("XFailed to parse interface spec", nil, "value", str)
+	default:
+		return PathInterface{RawIsdas: addr.IA{I: isd, A: as}.IAInt(), IfID: ifid}, nil
+	}
+	return PathInterface{}, nil
+}
+
+func extractIntFromSlice(str string, offset int) int {
+	if str == "" || str[offset:] == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(str[offset:])
+	if err != nil {
+		panic(err)
+	}
+	return n
 }
 
 func (iface *PathInterface) ISD_AS() addr.IA {

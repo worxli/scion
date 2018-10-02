@@ -19,6 +19,8 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -32,25 +34,25 @@ func TestNewPathInterface(t *testing.T) {
 		{
 			Name:  "ISD wildcard",
 			In:    "0",
-			PI:    mustPathInterface(t, "0-0#0"),
+			PI:    buildPathInterface(0, 0, 0),
 			Valid: true,
 		},
 		{
 			Name:  "AS, IF wildcard omitted",
 			In:    "1",
-			PI:    mustPathInterface(t, "1-0#0"),
+			PI:    buildPathInterface(1, 0, 0),
 			Valid: true,
 		},
 		{
 			Name:  "IF wildcard omitted",
 			In:    "1-0",
-			PI:    mustPathInterface(t, "1-0#0"),
+			PI:    buildPathInterface(1, 0, 0),
 			Valid: true,
 		},
 		{
 			Name:  "basic wildcard",
 			In:    "1-0#0",
-			PI:    mustPathInterface(t, "1-0#0"),
+			PI:    buildPathInterface(1, 0, 0),
 			Valid: true,
 		},
 		{
@@ -61,25 +63,25 @@ func TestNewPathInterface(t *testing.T) {
 		{
 			Name:  "ISD wildcard, AS set",
 			In:    "0-1#0",
-			PI:    mustPathInterface(t, "0-1#0"),
+			PI:    buildPathInterface(0, 1, 0),
 			Valid: true,
 		},
 		{
 			Name:  "ISD wildcard, AS set, interface set",
 			In:    "0-1#1",
-			PI:    mustPathInterface(t, "0-1#1"),
+			PI:    buildPathInterface(0, 1, 1),
 			Valid: true,
 		},
 		{
 			Name:  "ISD wildcard, AS set and interface omitted",
 			In:    "0-1",
-			PI:    mustPathInterface(t, "0-1#0"),
+			PI:    buildPathInterface(0, 1, 0),
 			Valid: true,
 		},
 		{
 			Name:  "IF wildcard omitted, AS set",
 			In:    "1-1",
-			PI:    mustPathInterface(t, "1-1#0"),
+			PI:    buildPathInterface(1, 1, 0),
 			Valid: true,
 		},
 		{
@@ -130,4 +132,8 @@ func mustPathInterface(t *testing.T, str string) PathInterface {
 	pi, err := NewPathInterface(str)
 	xtest.FailOnErr(t, err)
 	return pi
+}
+
+func buildPathInterface(isd addr.ISD, as addr.AS, ifid common.IFIDType) PathInterface {
+	return PathInterface{RawIsdas: addr.IA{I: isd, A: as}.IAInt(), IfID: ifid}
 }
