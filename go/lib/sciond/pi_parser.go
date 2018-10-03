@@ -22,11 +22,11 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-var pathInterfaceParserRegex = regexp.MustCompile("(?P<ISD>[0-9]+)(-(?P<AS>[0-9]+))?(#(?P<IFID>[0-9]+))?")
+var pathInterfaceParserRegex = regexp.MustCompile("^(?P<ISD>[0-9]+)(-(?P<AS>[0-9]+))?(#(?P<IFID>[0-9]+))?$")
 
 func parsePathInterface(str string) (*parseResult, error) {
 	submatches := pathInterfaceParserRegex.FindStringSubmatch(str)
-	if !isExactMatch(submatches, str) {
+	if len(submatches) == 0 {
 		return nil, common.NewBasicError("Failed to parse interface spec", nil, "value", str)
 	}
 	captureMap := getCaptureMap(submatches)
@@ -47,20 +47,13 @@ func getCaptureMap(submatches []string) map[string]string {
 	return captureMap
 }
 
-func isExactMatch(submatches []string, str string) bool {
-	if len(submatches) > 0 && len(submatches[0]) == len(str) {
-		return true
-	}
-	return false
-}
-
 type parseResult struct {
 	isd  string
 	as   string
 	ifid string
 }
 
-func (result *parseResult) ToPathInterface() (PathInterface, error) {
+func (result *parseResult) toPathInterface() (PathInterface, error) {
 	isd, err := addr.ISDFromString(result.isd)
 	if err != nil {
 		return PathInterface{}, err

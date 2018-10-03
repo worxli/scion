@@ -318,7 +318,7 @@ func NewPathInterface(str string) (PathInterface, error) {
 	if err != nil {
 		return PathInterface{}, err
 	}
-	pi, err := result.ToPathInterface()
+	pi, err := result.toPathInterface()
 	if err != nil {
 		return PathInterface{}, err
 	}
