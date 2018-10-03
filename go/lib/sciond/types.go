@@ -17,8 +17,6 @@ package sciond
 import (
 	"fmt"
 	"net"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -315,83 +313,19 @@ type PathInterface struct {
 	IfID     common.IFIDType
 }
 
-func NewPathInterface2(str string) (PathInterface, error) {
-	var iface PathInterface
-	// Allow short form with implicit AS wildcard
-	isdParts := strings.Split(str, "-")
-	var as addr.AS
-	if len(isdParts) == 2 {
-		asParts := strings.Split(isdParts[1], "#")
-		// Allow short form with implicit IF wildcard
-		if len(asParts) == 1 {
-			iface.IfID = common.IFIDType(0)
-		} else if len(asParts) == 2 {
-			ifid, err := strconv.ParseUint(asParts[1], 10, 64)
-			if err != nil {
-				return PathInterface{}, err
-			}
-			iface.IfID = common.IFIDType(ifid)
-		} else {
-			return PathInterface{},
-				common.NewBasicError("Failed to parse interface spec", nil, "value", str)
-		}
-		var err error
-		as, err = addr.ASFromString(asParts[0])
-		if err != nil {
-			return PathInterface{}, err
-		}
-		// Check for non-wildcard IF on a wildcard AS
-		if as == addr.AS(0) {
-			if iface.IfID != 0 {
-				return PathInterface{},
-					common.NewBasicError("Failed to parse interface spec", nil, "value", str)
-			}
-		}
-	} else if len(isdParts) == 1 {
-		as = addr.AS(0)
-		iface.IfID = common.IFIDType(0)
-	} else {
-		return PathInterface{},
-			common.NewBasicError("Failed to parse interface spec", nil, "value", str)
-	}
-	isd, err := addr.ISDFromString(isdParts[0])
+func NewPathInterface(str string) (PathInterface, error) {
+	result, err := parsePathInterface(str)
 	if err != nil {
 		return PathInterface{}, err
 	}
-	iface.RawIsdas = addr.IA{I: isd, A: as}.IAInt()
-	return iface, nil
-}
-
-func NewPathInterface(str string) (PathInterface, error) {
-	re := regexp.MustCompile("([0-9]+)(-[0-9]+)?(#[0-9]+)?")
-	strs := re.FindStringSubmatch(str)
-	if len(strs) == 0 || len(strs[0]) != len(str) {
-		return PathInterface{}, common.NewBasicError("Failed to parse interface spec", nil, "value", str)
-	}
-	isd := addr.ISD(extractIntFromSlice(strs[1], 0))
-	as := addr.AS(extractIntFromSlice(strs[2], 1))
-	ifid := common.IFIDType(extractIntFromSlice(strs[3], 1))
-	fmt.Println("str", str, "isd", isd, "as", as, "ifid", ifid)
-	switch {
-	case isd == 0 && as == 0 && ifid != 0:
-		fallthrough
-	case isd != 0 && as == 0 && ifid != 0:
-		return PathInterface{}, common.NewBasicError("XFailed to parse interface spec", nil, "value", str)
-	default:
-		return PathInterface{RawIsdas: addr.IA{I: isd, A: as}.IAInt(), IfID: ifid}, nil
-	}
-	return PathInterface{}, nil
-}
-
-func extractIntFromSlice(str string, offset int) int {
-	if str == "" || str[offset:] == "" {
-		return 0
-	}
-	n, err := strconv.Atoi(str[offset:])
+	pi, err := result.ToPathInterface()
 	if err != nil {
-		panic(err)
+		return PathInterface{}, err
 	}
-	return n
+	if !isValidPredicate(pi) {
+		return PathInterface{}, common.NewBasicError("PathInterface is not a valid predicate", nil)
+	}
+	return pi, nil
 }
 
 func (iface *PathInterface) ISD_AS() addr.IA {

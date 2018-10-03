@@ -21,7 +21,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestNewPathInterface(t *testing.T) {
@@ -124,14 +123,6 @@ func TestNewPathInterface(t *testing.T) {
 			})
 		}
 	})
-}
-
-func mustPathInterface(t *testing.T, str string) PathInterface {
-	t.Helper()
-
-	pi, err := NewPathInterface(str)
-	xtest.FailOnErr(t, err)
-	return pi
 }
 
 func buildPathInterface(isd addr.ISD, as addr.AS, ifid common.IFIDType) PathInterface {
