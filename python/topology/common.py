@@ -87,3 +87,15 @@ def _srv_iter(topo_dicts, out_dir, common=False):
                 yield topo_id, as_topo, os.path.join(base, elem)
         if common:
             yield topo_id, as_topo, os.path.join(base, COMMON_DIR)
+
+
+def remote_nets(networks, topo_id):
+    rem_nets = []
+    for key in networks:
+        if 'br' not in key and key != topo_id.file_fmt():
+            rem_nets.append(str(networks[key][0]['net']))
+    return ','.join(rem_nets)
+
+
+def _sciond_name(topo_id):
+    return 'sd' + topo_id.file_fmt()

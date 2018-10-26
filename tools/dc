@@ -21,9 +21,28 @@ cmd_help() {
 	        Run docker-compose command for scion services.
 	    $PROGRAM utils [docker-compose command]
 	        Run docker-compose command for util services.
+	    $PROGRAM utils [docker-compose command]
+	        Run docker-compose command for util services.
 	    $PROGRAM tester [command]
 	        Run a command in the `tester` container.
+	    $PROGRAM run_tester [ia] [command]
+	        Run a command in the `tester` container belonging to IA [ia].
 	_EOF
+}
+
+cmd_init() {
+	FILE="gen/dc-networks.conf"
+	while read line; do
+		vars=( $line )
+		local name="${vars[1]}"
+		docker network inspect "$name" &> /dev/null
+		if [[ $? -eq 0 ]]; then
+			echo "Network $name already exists, skip creating."
+		else
+			echo "Creating network $name: $(docker network create --driver=bridge --subnet="${vars[0]}" -o "com.docker.network.bridge.name=$name" "$name")"
+		fi
+	done < $FILE
+	cmd_utils up -d chowner
 }
 
 cmd_scion() {
@@ -35,7 +54,39 @@ cmd_utils() {
 }
 
 cmd_tester() {
-    COMPOSE_FILE="gen/base-dc.yml:gen/utils-dc.yml" docker-compose exec tester "$@"
+	COMPOSE_FILE="gen/base-dc.yml:gen/testers-dc.yml" docker-compose --no-ansi "$@"
+}
+
+cmd_sig() {
+	COMPOSE_FILE="gen/base-dc.yml:gen/sig-dc.yml" docker-compose --no-ansi "$@"
+}
+
+exec_tester() {
+# run_tester() {
+	local cntr="$1"
+	shift
+	local ia="$1"
+	shift
+	docker exec -t -u scion "${cntr}_${ia}" "$@"
+	# cmd_tester run "${cntr}_${ia}" -c "$*"
+}
+
+cmd_down() {
+	cmd_utils down >/dev/null 2>&1
+	cmd_sig down >/dev/null 2>&1
+	cmd_scion down >/dev/null 2>&1
+	cmd_tester down >/dev/null 2>&1
+	FILE="gen/dc-networks.conf"
+	while read line; do
+		vars=( $line )
+		local name="${vars[1]}"
+		docker network inspect "$name" &> /dev/null
+		if [[ $? -eq 0 ]]; then
+			echo "Removing network $(docker network rm "$name")"
+		else
+			echo "Network $name not found, skip removing."
+		fi
+	done < $FILE
 }
 
 PROGRAM="${0##*/}"
@@ -43,7 +94,9 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    scion|tester|utils)
-        "cmd_$COMMAND" "$@" ;;
-    *)  cmd_help; exit 1 ;;
+	init|scion|sig|tester|utils|down)
+	    "cmd_$COMMAND" "$@" ;;
+    "exec_tester") exec_tester "$@" ;;
+    # "run_tester") run_tester "$@" ;;
+	*)  cmd_help; exit 1 ;;
 esac

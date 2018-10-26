@@ -70,11 +70,13 @@ def main():
                         help='Path Server implementation to use ("go or "py")')
     parser.add_argument('-ds', '--discovery', action='store_true',
                         help='Generate discovery service')
+    parser.add_argument('--sig', default=False, action='store_true',
+                        help='Generate topology for SIG testing')
     args = parser.parse_args()
     confgen = ConfigGenerator(
         args.ipv6, args.output_dir, args.topo_config, args.path_policy, args.zk_config,
         args.network, args.mininet, args.docker, args.bind_addr, args.pseg_ttl, args.cert_server,
-        args.sciond, args.path_server, args.discovery)
+        args.sciond, args.path_server, args.discovery, args.sig)
     confgen.generate_all()
 
 

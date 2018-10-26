@@ -26,10 +26,9 @@ import (
 )
 
 var (
-	name       = "certreq"
-	cmd        = "./bin/cert_req"
-	dockerArgs = []string{"tester", cmd}
-	attempts   = flag.Int("attempts", 2, "Number of attempts before giving up.")
+	name     = "certreq"
+	cmd      = "./bin/cert_req"
+	attempts = flag.Int("attempts", 2, "Number of attempts before giving up.")
 )
 
 func main() {
@@ -47,11 +46,14 @@ func realMain() int {
 	serverAddr := integration.DstIAReplace
 	clientArgs := []string{"-log.console", "debug", "-attempts", strconv.Itoa(*attempts),
 		"-local", clientAddr, "-remoteIA", serverAddr}
-	if *integration.Docker {
-		clientArgs = append(dockerArgs, clientArgs...)
-		cmd = integration.DockerCmd
+	var in integration.Integration
+	if *integration.Container != "" {
+		in = integration.NewDockerIntegration(name, *integration.Container, cmd, clientArgs,
+			[]string{}, integration.StdLog)
+	} else {
+		in = integration.NewBinaryIntegration(name, cmd, clientArgs, []string{},
+			integration.StdLog)
 	}
-	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{}, integration.StdLog)
 	// Now start the clients for srcDest pair
 	for i, conn := range integration.IAPairs() {
 		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",

@@ -19,7 +19,6 @@ cmd_topology() {
     fi
     echo "Create topology, configuration, and execution files."
     python/topology/generator.py "$@"
-    run_zk
     if [ -n "$zkclean" ]; then
         echo "Deleting all Zookeeper state"
         # Wait some time, such that zookeeper accepts connections again after startup

@@ -1,0 +1,6 @@
+FROM ubuntu:16.04
+RUN apt-get update && apt-get install iperf3 net-tools iputils-ping iproute2 tcpdump -y
+COPY tester.sh .
+
+RUN chmod +x tester.sh
+CMD tail -f /dev/null

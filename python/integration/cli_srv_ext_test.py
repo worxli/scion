@@ -94,7 +94,7 @@ def main():
         src = SCIONAddr.from_values(ISD_AS(args.src_ia), haddr_parse_interface(args.client))
         dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))
         ExtClient(args.data.encode('utf-8'), src, dst, dport=int(args.port),
-                  retries=args.retries).run()
+                  retries=args.retries, api_addr=args.api_addr).run()
 
 
 if __name__ == "__main__":

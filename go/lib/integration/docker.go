@@ -17,6 +17,7 @@ package integration
 import (
 	"bufio"
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -27,67 +28,55 @@ import (
 )
 
 const (
-	// ServerPortReplace is a placeholder for the server port in the arguments.
-	ServerPortReplace = "<ServerPort>"
-	// SrcIAReplace is a placeholder for the source IA in the arguments.
-	SrcIAReplace = "<SRCIA>"
-	// DstIAReplace is a placeholder for the destination IA in the arguments.
-	DstIAReplace = "<DSTIA>"
-	// ReadySignal should be written to Stdout by the server once it is read to accept clients.
-	// The message should always be `Listening ia=<IA>`
-	// where <IA> is the IA the server is listening on.
-	ReadySignal = "Listening ia="
-	// GoIntegrationEnv is an environment variable that is set for the binary under test.
-	// It can be used to guard certain statements, like printing the ReadySignal,
-	// in a program under test.
-	GoIntegrationEnv = "SCION_GO_INTEGRATION"
-	// portString is the string a server prints to specify the port it's listening on.
-	portString = "Port="
+	dockerCmd = "./tools/dc"
+	dockerArg = "run_tester"
 )
+
+var _ Integration = (*dockerIntegration)(nil)
 
 var (
-	serverPort = "40004"
+	// Container indicates the container name prefix where the test should be executed in
+	Container = flag.String("c", "", "Docker container name prefix (e.g. tester_)")
 )
 
-var _ Integration = (*binaryIntegration)(nil)
-
-type binaryIntegration struct {
+type dockerIntegration struct {
 	name        string
 	cmd         string
+	cntrPref    string
 	clientArgs  []string
 	serverArgs  []string
 	logRedirect LogRedirect
 }
 
-// NewBinaryIntegration returns an implementation of the Integration interface.
-// Start* will run the binary programm with name and use the given arguments for the client/server.
+// NewDockerIntegration returns an implementation of the Integration interface.
+// Start will execute the command in a running docker container and use the given arguments for
+// the client/server.
 // Use SrcIAReplace and DstIAReplace in arguments as placeholder for the source and destination IAs.
 // When starting a client/server the placeholders will be replaced with the actual values.
 // The server should output the ReadySignal to Stdout once it is ready to accept clients.
-func NewBinaryIntegration(name string, cmd string, clientArgs, serverArgs []string,
+func NewDockerIntegration(name, cntrPref, cmd string, clientArgs, serverArgs []string,
 	logRedirect LogRedirect) Integration {
 
-	return &binaryIntegration{
+	return &dockerIntegration{
 		name:        name,
 		cmd:         cmd,
+		cntrPref:    cntrPref,
 		clientArgs:  clientArgs,
 		serverArgs:  serverArgs,
 		logRedirect: logRedirect,
 	}
 }
 
-func (bi *binaryIntegration) Name() string {
+func (bi *dockerIntegration) Name() string {
 	return bi.name
 }
 
 // StartServer starts a server and blocks until the ReadySignal is received on Stdout.
-func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Waiter, error) {
-	startCtx, cancelF := context.WithTimeout(ctx, StartServerTimeout)
-	defer cancelF()
+func (bi *dockerIntegration) StartServer(ctx context.Context, dst addr.IA) (Waiter, error) {
 	args := replacePattern(DstIAReplace, dst.String(), bi.serverArgs)
-	args = replacePattern(ServerPortReplace, serverPort, args)
+	args = append([]string{dockerArg, bi.cntrPref, dst.FileFmt(false), bi.cmd}, args...)
 	r := &binaryWaiter{
-		exec.CommandContext(ctx, bi.cmd, args...),
+		exec.CommandContext(ctx, dockerCmd, args...),
 	}
 	r.Env = os.Environ()
 	r.Env = append(r.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
@@ -110,6 +99,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Wait
 		scanner := bufio.NewScanner(sp)
 		for scanner.Scan() {
 			line := scanner.Text()
+			fmt.Println(line)
 			if strings.HasPrefix(line, portString) {
 				serverPort = strings.TrimPrefix(line, portString)
 			}
@@ -119,10 +109,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Wait
 			}
 		}
 	}()
-	go func() {
-		defer log.LogPanicAndExit()
-		bi.logRedirect("Server", "ServerErr", dst, ep)
-	}()
+	go bi.logRedirect("Server", "ServerErr", dst, ep)
 	err = r.Start()
 	if err != nil {
 		return nil, err
@@ -130,44 +117,27 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Wait
 	select {
 	case <-ready:
 		return r, err
-	case <-startCtx.Done():
-		return nil, startCtx.Err()
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
 }
 
-func (bi *binaryIntegration) StartClient(ctx context.Context, src, dst addr.IA) (Waiter, error) {
+func (bi *dockerIntegration) StartClient(ctx context.Context, src, dst addr.IA) (Waiter, error) {
 	args := replacePattern(SrcIAReplace, src.String(), bi.clientArgs)
 	args = replacePattern(DstIAReplace, dst.String(), args)
 	args = replacePattern(ServerPortReplace, serverPort, args)
+	args = append([]string{dockerArg, bi.cntrPref, src.FileFmt(false), bi.cmd}, args...)
 	r := &binaryWaiter{
-		exec.CommandContext(ctx, bi.cmd, args...),
+		exec.CommandContext(ctx, dockerCmd, args...),
 	}
 	r.Env = os.Environ()
 	r.Env = append(r.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
 	ep, err := r.StderrPipe()
+	sp, err := r.StdoutPipe()
 	if err != nil {
 		return nil, err
 	}
-	go func() {
-		defer log.LogPanicAndExit()
-		bi.logRedirect("Client", "ClientErr", src, ep)
-	}()
+	go bi.logRedirect("Client", "ClientErr", src, ep)
+	go bi.logRedirect("Client", "ClientOut", src, sp)
 	return r, r.Start()
-}
-
-func replacePattern(pattern string, replacement string, args []string) []string {
-	// first copy
-	argsCopy := append([]string(nil), args...)
-	for i, arg := range argsCopy {
-		if strings.Contains(arg, pattern) {
-			argsCopy[i] = strings.Replace(arg, pattern, replacement, -1)
-		}
-	}
-	return argsCopy
-}
-
-var _ Waiter = (*binaryWaiter)(nil)
-
-type binaryWaiter struct {
-	*exec.Cmd
 }

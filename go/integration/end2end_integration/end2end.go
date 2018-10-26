@@ -49,12 +49,14 @@ func realMain() int {
 		"-local", clientAddr, "-remote", serverAddr}
 	serverArgs := []string{"-log.console", "debug", "-mode", "server", "-local", serverAddr}
 	// Redefine command and adjust args if run in docker
-	if *integration.Docker {
-		clientArgs = append(dockerArgs, clientArgs...)
-		serverArgs = append(dockerArgs, serverArgs...)
-		cmd = integration.DockerCmd
+	var in integration.Integration
+	if *integration.Container != "" {
+		in = integration.NewDockerIntegration(name, *integration.Container, cmd, clientArgs,
+			serverArgs, integration.StdLog)
+	} else {
+		in = integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs,
+			integration.StdLog)
 	}
-	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs, integration.StdLog)
 	if err := runTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1

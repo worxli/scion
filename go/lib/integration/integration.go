@@ -16,6 +16,7 @@
 package integration
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
@@ -25,6 +26,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/scionproto/scion/go/lib/log/logparse"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
@@ -305,5 +308,27 @@ func errFromChan(errors chan error) error {
 		return err
 	default:
 		return nil
+	}
+}
+
+type LogRedirect func(name, pName string, local addr.IA, ep io.ReadCloser)
+
+// StdLog tries to parse any log line from the standard format and logs it with the same log level
+// as the original log entry to the log file.
+var StdLog LogRedirect = func(name, pName string, local addr.IA, ep io.ReadCloser) {
+	defer log.LogPanicAndExit()
+	defer ep.Close()
+	logparse.ParseFrom(ep, pName, pName, func(e logparse.LogEntry) {
+		log.Log(e.Level, fmt.Sprintf("%s@%s: %s", name, local, strings.Join(e.Lines, "\n")))
+	})
+}
+
+// NonStdLog directly logs any lines as error to the log file
+var NonStdLog LogRedirect = func(name, pName string, local addr.IA, ep io.ReadCloser) {
+	defer log.LogPanicAndExit()
+	defer ep.Close()
+	scanner := bufio.NewScanner(ep)
+	for scanner.Scan() {
+		log.Error(fmt.Sprintf("%s@%s: %s", name, local, scanner.Text()))
 	}
 }

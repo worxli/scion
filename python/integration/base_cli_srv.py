@@ -265,7 +265,7 @@ class TestServerBase(TestBase):
         raise NotImplementedError
 
 
-def get_sciond_api_addr(addr):
+def get_sciond_api_addr(addr=None):
     return os.path.join(SCIOND_API_SOCKDIR, "sd%s.sock" % addr.isd_as.file_fmt())
 
 
@@ -289,6 +289,7 @@ def setup_main(name, parser=None):
                         help="Run as server")
     parser.add_argument('--data', default=None, help="Data for client / server split run")
     parser.add_argument('--port', default=0, help="Port for client / server split run")
+    parser.add_argument('--api_addr', default=None, help="SCIOND Path")
     parser.add_argument('src_ia', nargs='?', help='Src isd-as')
     parser.add_argument('dst_ia', help='Dst isd-as')
     args = parser.parse_args()
