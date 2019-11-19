@@ -125,3 +125,29 @@ tool_deps()
 load("//:go_deps.bzl", "go_deps")
 
 go_deps()
+
+# http_archive(
+#     name = "rules_python",
+#     url = "https://github.com/bazelbuild/rules_python/releases/download/0.0.1/rules_python-0.0.1.tar.gz",
+#     sha256 = "aa96a691d3a8177f3215b14b0edc9641787abaaa30363a080165d06ab65e1161",
+# )
+git_repository(
+    name = "rules_python",
+    remote = "https://github.com/bazelbuild/rules_python.git",
+    commit = "94677401bc56ed5d756f50b441a6a5c7f735a6d4",
+)
+load("@rules_python//python:repositories.bzl", "py_repositories")
+py_repositories()
+# Only needed if using the packaging rules.
+load("@rules_python//python:pip.bzl", "pip_repositories", "pip3_import")
+pip_repositories()
+
+# Create a central repo that knows about the dependencies needed for requirements.txt.
+pip3_import(   # or pip3_import
+   name = "py_deps",
+   requirements = "//python:requirements.txt",
+)
+
+# Load the central repo's install function from its `//:requirements.bzl` file, and call it.
+load("@py_deps//:requirements.bzl", "pip_install")
+pip_install()

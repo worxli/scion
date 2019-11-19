@@ -1,0 +1,20 @@
+load("@py_deps//:requirements.bzl", "requirement")
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "py_default_library",
+    srcs = glob(["**/*.py"]),
+)
+
+py_binary(
+    name = "topology",
+    main = "generator.py",
+    srcs = ["generator.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":py_default_library",
+        "//python/lib:py_default_library",
+        requirement("toml"),
+        requirement("plumbum"),
+    ],
+)

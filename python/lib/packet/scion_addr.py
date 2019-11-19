@@ -90,7 +90,7 @@ class ISD_AS(Serializable):
         try:
             self._isd = int(raw)
         except ValueError:
-            raise SCIONParseError("Unable to parse ISD from string: %s" % raw) from None
+            raise SCIONParseError("Unable to parse ISD from string: %s" % raw)
         if self._isd > self.MAX_ISD:
             raise SCIONParseError("ISD too large (max: %d): %s" % (self.MAX_ISD, raw))
 
@@ -98,7 +98,7 @@ class ISD_AS(Serializable):
         try:
             self._as = int(raw, base=10)
         except ValueError:
-            raise SCIONParseError("Unable to parse decimal AS from string: %s" % raw) from None
+            raise SCIONParseError("Unable to parse decimal AS from string: %s" % raw)
         if self._as > self.MAX_BGP_AS:
             raise SCIONParseError("Decimal AS too large (max: %d): %s" % (self.MAX_BGP_AS, raw))
 
@@ -106,7 +106,7 @@ class ISD_AS(Serializable):
         try:
             as_parts = raw.split(as_sep)
         except ValueError:
-            raise SCIONParseError("Unable to parse hex AS from string: %s" % raw) from None
+            raise SCIONParseError("Unable to parse hex AS from string: %s" % raw)
         if len(as_parts) != self.HEX_AS_PARTS:
             raise SCIONParseError(
                 "Wrong number of separators (%s) in hex AS number (expected: %d actual: %s): %s" %
